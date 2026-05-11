@@ -1,18 +1,24 @@
-const express =  require('express');
-const router =  express.Router();
-const authMiddleware =  require('../../middlewares/auth.middleware');
-const userController =  require('./user.controller');
+const express = require('express');
+const router = express.Router();
+const authMiddleware = require('../../middlewares/auth.middleware');
+const userController = require('./user.controller');
 
 router.patch(
-  '/onboarding/language',
+  '/language',
   authMiddleware,
   userController.updateLanguage,
 );
 
 router.patch(
-  '/onboarding/name',
+  '/name',
   authMiddleware,
   userController.updateName,
+);
+
+router.patch(
+  '/gender',
+  authMiddleware,
+  userController.updateGender,
 );
 
 module.exports = router;

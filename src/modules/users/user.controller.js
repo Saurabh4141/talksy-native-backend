@@ -37,7 +37,20 @@ const updateLanguage = async (req, res) => {
       data: result,
     });
   } catch (err) {
-    console.log('updateLanguage error:', err.message);
+    console.log(
+      'updateLanguage FULL ERROR:',
+      err,
+    );
+
+    console.log(
+      'updateLanguage MESSAGE:',
+      err?.message,
+    );
+
+    console.log(
+      'updateLanguage STACK:',
+      err?.stack,
+    );
 
     console.log(err);
 
@@ -129,7 +142,59 @@ const updateName = async (req, res) => {
   }
 };
 
+/**
+ * Update gender
+ */
+const updateGender = async (req, res) => {
+  try {
+    /**
+     * Validate body
+     */
+    const { gender } =
+      req.body;
+
+    if (!gender) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Gender is required',
+      });
+    }
+
+    /**
+     * Update user
+     */
+    const result =
+      await userService.updateGender(
+        {
+          userId:
+            req.user.user_id,
+
+          gender,
+        },
+      );
+
+    return res.json({
+      success: true,
+      data: result,
+    });
+  } catch (err) {
+    console.log(
+      'updateGender error:',
+      err,
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        err.message ||
+        'Something went wrong',
+    });
+  }
+};
+
 module.exports = {
   updateLanguage,
   updateName,
+  updateGender,
 };

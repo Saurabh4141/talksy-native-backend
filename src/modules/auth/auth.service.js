@@ -132,208 +132,152 @@ const verifyOtp = async ({
   otp_code,
 }) => {
   /**
-   * Validation
+   * Validate phone
    */
-  if (
-    !phone_number ||
-    !/^[6-9]\d{9}$/.test(
-      phone_number
-    )
-  ) {
-    throw new Error(
-      "Invalid phone number"
-    );
+  if (!phone_number || !/^[6-9]\d{9}$/.test(phone_number)) {
+    throw new Error('Invalid phone number');
   }
 
-  if (
-    !otp_code ||
-    !/^\d{4}$/.test(
-      otp_code
-    )
-  ) {
-    throw new Error(
-      "Invalid OTP"
-    );
+  /**
+   * Validate OTP
+   */
+  if (!otp_code || !/^\d{4}$/.test(otp_code)) {
+    throw new Error('Invalid OTP');
   }
 
   /**
    * Get latest OTP session
    */
-  const {
-    data: otpSession,
-    error: fetchError,
-  } = await db
-    .from("otp_sessions")
-    .select("*")
-    .eq(
-      "phone_number",
-      phone_number
-    )
-    .order(
-      "created_at",
-      { ascending: false }
-    )
+  const { data: otpSession, error: fetchError } = await db
+    .from('otp_sessions')
+    .select('*')
+    .eq('phone_number', phone_number)
+    .order('created_at', { ascending: false })
     .limit(1)
     .single();
 
+  /**
+   * Fetch error
+   */
   if (fetchError) {
-    throw new Error(
-      "Failed to fetch OTP"
-    );
+    throw new Error('Failed to fetch OTP');
   }
 
+  /**
+   * Missing OTP
+   */
   if (!otpSession) {
-    throw new Error(
-      "Invalid or expired OTP"
-    );
+    throw new Error('Invalid or expired OTP');
   }
 
   /**
    * Already verified
    */
-  if (
-    otpSession.verified
-  ) {
-    throw new Error(
-      "OTP already used"
-    );
+  if (otpSession.verified) {
+    throw new Error('OTP already used');
   }
 
   /**
    * Attempt limit
    */
-  const attempts =
-    otpSession.attempts || 0;
+  const attempts = otpSession.attempts || 0;
 
   if (attempts >= 5) {
-    throw new Error(
-      "Too many attempts"
-    );
+    throw new Error('Too many attempts');
   }
 
   /**
    * Incorrect OTP
    */
-  if (
-    otpSession.otp_code !==
-    otp_code
-  ) {
-    await db
-      .from("otp_sessions")
-      .update({
-        attempts:
-          attempts + 1,
-      })
-      .eq(
-        "id",
-        otpSession.id
-      );
+  if (otpSession.otp_code !== otp_code) {
+    await db.from('otp_sessions').update({ attempts: attempts + 1 }).eq('id', otpSession.id);
 
-    throw new Error(
-      "Incorrect OTP"
-    );
+    throw new Error('Incorrect OTP');
   }
 
   /**
-   * Expiry check
+   * Expiry validation
    */
-  const now =
-    new Date();
+  const now = new Date();
 
-  const expiresAt =
-    new Date(
-      otpSession.expires_at
-    );
+  const expiresAt = new Date(otpSession.expires_at);
 
   if (expiresAt < now) {
-    throw new Error(
-      "OTP expired"
-    );
+    throw new Error('OTP expired');
   }
 
   /**
-   * Mark OTP verified
+   * Mark verified
    */
-  const {
-    error: updateError,
-  } = await db
-    .from("otp_sessions")
-    .update({
-      verified: true,
-    })
-    .eq(
-      "id",
-      otpSession.id
-    );
+  const { error: updateError } = await db
+    .from('otp_sessions')
+    .update({ verified: true })
+    .eq('id', otpSession.id);
 
   if (updateError) {
-    throw new Error(
-      "Failed to verify OTP"
-    );
+    throw new Error('Failed to verify OTP');
   }
 
   /**
    * Find existing user
    */
-  let {
-    data: user,
-    error: userError,
-  } = await db
-    .from("users")
-    .select("*")
-    .eq(
-      "phone_number",
-      phone_number
-    )
+  let { data: user, error: userError } = await db
+    .from('users')
+    .select('*')
+    .eq('phone_number', phone_number)
     .maybeSingle();
 
   if (userError) {
-    throw new Error(
-      "Failed to fetch user"
-    );
+    throw new Error('Failed to fetch user');
   }
 
   /**
-   * Create user if not exists
+   * Existing user flag
    */
-  let is_existing_user =
-    true;
+  let is_existing_user = true;
 
+  /**
+   * Create new user
+   */
   if (!user) {
-    is_existing_user =
-      false;
+    is_existing_user = false;
 
-    const {
-      data: newUser,
-      error: createError,
-    } = await db
-      .from("users")
+    const { data: newUser, error: createError } = await db
+      .from('users')
       .insert([
         {
           phone_number,
           is_verified: true,
+          onboarding_step: 'language',
+          onboarding_completed: false,
         },
       ])
       .select()
       .single();
 
     if (createError) {
-      throw new Error(
-        "Failed to create user"
-      );
+      throw new Error('Failed to create user');
     }
 
     user = newUser;
   }
 
   /**
+   * Get onboarding profile
+   */
+  const { data: onboardingProfile } = await db
+    .from('onboarding_profiles')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  /**
    * Generate JWT
    */
-  const token =
-    generateToken({
-      user_id: user.id,
-      phone_number: user.phone_number,
-    });
+  const token = generateToken({
+    user_id: user.id,
+    phone_number: user.phone_number,
+  });
 
   /**
    * Final response
@@ -343,12 +287,15 @@ const verifyOtp = async ({
 
     user: {
       id: user.id,
-
-      phone_number:
-        user.phone_number,
-
-      onboarding_completed:
-        user.onboarding_completed,
+      phone_number: user.phone_number,
+      name: user.name,
+      preferred_language: user.preferred_language,
+      onboarding_step: user.onboarding_step,
+      onboarding_completed: user.onboarding_completed,
+      is_verified: user.is_verified,
+      onboarding_profile: onboardingProfile || null,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
     },
 
     is_existing_user,
