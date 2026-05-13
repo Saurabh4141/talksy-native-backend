@@ -57,8 +57,8 @@ const updateLanguage = async ({
       /**
        * Move onboarding
        */
-      // onboarding_step:
-      //   'name',
+      onboarding_step:
+        'name',
     })
     .eq('id', userId)
     .select()
@@ -337,7 +337,7 @@ const updateGender = async ({
        * Move onboarding
        */
       onboarding_step:
-        'vibe',
+        'companion-gender',
     })
     .eq('id', userId)
     .select()

@@ -49,4 +49,7 @@ app.use("/auth", authRoutes);
 const userRoutes = require('./modules/users/user.routes');
 app.use('/users', userRoutes);
 
+const onboardingRoutes = require('./modules/onboarding/onboarding.routes');
+app.use('/onboarding', onboardingRoutes);
+
 module.exports = app;
